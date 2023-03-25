@@ -45,20 +45,3 @@ VOLUME /home/usr1cv8
 VOLUME /var/log/1C
 
 EXPOSE 1540-1541 1560-1591
-
-# # CMD ["ragent"]
-# CMD 'service srv1cv83 start'
-
-# # service srv1cv83 start
-
-# # ENTRYPOINT ["top", "-b"]
-# # CMD ["-c"]
-
-# ENTRYPOINT ["/docker-entrypoint.sh"]
-
-
-# ENTRYPOINT ["top", "-b"]
-# CMD ["-c"]
-
-# ENTRYPOINT service srv1cv83 start  # "shell" format  
-# CMD ["top"]
