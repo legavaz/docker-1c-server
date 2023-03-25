@@ -1,5 +1,11 @@
 # docker-1c-server
 
+# legavaz
+sudo ./build.sh && sudo ./run.sh
+
+docker inspect --format '{{ .NetworkSettings.IPAddress }}' 1c-server
+
+
 ## Что это?
 
 docker-1c-server -- это сервер 1С:Предприятия в контейнере Docker.

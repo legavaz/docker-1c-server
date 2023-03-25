@@ -1,3 +1,3 @@
 #!/bin/bash
 
-docker build --tag alexanderfefelov/1c-server .
+docker build --tag v83-1996/1c-server .

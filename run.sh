@@ -3,7 +3,7 @@
 docker run --name 1c-server \
   --net host \
   --detach \
-  --volume 1c-server-home:/home/usr1cv8 \
-  --volume 1c-server-logs:/var/log/1C \
+  --volume ./usr1cv8:/home/usr1cv8 \
+  --volume ./log:/var/log/1C \
   --volume /etc/localtime:/etc/localtime:ro \
-  alexanderfefelov/1c-server
+  v83-1996/1c-server

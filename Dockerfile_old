@@ -18,21 +18,13 @@ RUN apt-get -qq update \
 RUN localedef --inputfile ru_RU --force --charmap UTF-8 --alias-file /usr/share/locale/locale.alias ru_RU.UTF-8
 ENV LANG ru_RU.utf8
 
+ADD *.deb /tmp/
 
-# setup-full-8.3.20.1996-x86_64.run 
-ENV SERVER_FILE setup-full-8.3.20.1996-x86_64.run
-ENV SERVER_VERSION 20.1996
-
-ADD ${SERVER_FILE} /tmp/
-# RUN tar zxvf /tmp/${SERVER_ARH} 
-RUN chmod +x /tmp/${SERVER_FILE}
-RUN /tmp/${SERVER_FILE} --mode unattended --disable-components client_full --enable-components server,ws,server_admin,config_storage_server,liberica_jre
-
-RUN ln -s /opt/1cv8/x86_64/8.3.20.1996/srv1cv83 /etc/init.d/srv1cv83
-RUN ln -s /opt/1cv8/x86_64/8.3.20.1996/srv1cv83.conf /etc/default/srv1cv83
-RUN update-rc.d srv1cv83 defaults
-
-RUN rm /tmp/*.* \
+ENV PLATFORM_VERSION 83
+ENV SERVER_VERSION 8.3.10-2639
+RUN dpkg --install /tmp/1c-enterprise$PLATFORM_VERSION-common_${SERVER_VERSION}_amd64.deb 2> /dev/null \
+  && dpkg --install /tmp/1c-enterprise$PLATFORM_VERSION-server_${SERVER_VERSION}_amd64.deb 2> /dev/null \
+  && rm /tmp/*.deb \
   && mkdir --parents /var/log/1C /home/usr1cv8/.1cv8/1C/1cv8/conf \
   && chown --recursive usr1cv8:grp1cv8 /var/log/1C /home/usr1cv8
 
@@ -46,19 +38,4 @@ VOLUME /var/log/1C
 
 EXPOSE 1540-1541 1560-1591
 
-# # CMD ["ragent"]
-# CMD 'service srv1cv83 start'
-
-# # service srv1cv83 start
-
-# # ENTRYPOINT ["top", "-b"]
-# # CMD ["-c"]
-
-# ENTRYPOINT ["/docker-entrypoint.sh"]
-
-
-# ENTRYPOINT ["top", "-b"]
-# CMD ["-c"]
-
-# ENTRYPOINT service srv1cv83 start  # "shell" format  
-# CMD ["top"]
+CMD ["ragent"]
