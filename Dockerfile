@@ -18,19 +18,16 @@ RUN apt-get -qq update \
 RUN localedef --inputfile ru_RU --force --charmap UTF-8 --alias-file /usr/share/locale/locale.alias ru_RU.UTF-8
 ENV LANG ru_RU.utf8
 
-
-# setup-full-8.3.20.1996-x86_64.run 
-ENV SERVER_FILE setup-full-8.3.20.1996-x86_64.run
 ENV SERVER_VERSION 20.1996
 
-ADD ${SERVER_FILE} /tmp/
-# RUN tar zxvf /tmp/${SERVER_ARH} 
-RUN chmod +x /tmp/${SERVER_FILE}
-RUN /tmp/${SERVER_FILE} --mode unattended --disable-components client_full --enable-components server,ws,server_admin,config_storage_server,liberica_jre
+# setup-full-8.3.20.1996-x86_64.run 
+ADD setup-full-8.3.${SERVER_VERSION}-x86_64.run /tmp/
+RUN chmod +x /tmp/setup-full-8.3.${SERVER_VERSION}-x86_64.run \
+&& /tmp/setup-full-8.3.${SERVER_VERSION}-x86_64.run --mode unattended --disable-components client_full --enable-components server,ws,server_admin,config_storage_server,liberica_jre
 
-RUN ln -s /opt/1cv8/x86_64/8.3.20.1996/srv1cv83 /etc/init.d/srv1cv83
-RUN ln -s /opt/1cv8/x86_64/8.3.20.1996/srv1cv83.conf /etc/default/srv1cv83
-RUN update-rc.d srv1cv83 defaults
+RUN ln -s /opt/1cv8/x86_64/8.3.${SERVER_VERSION}/srv1cv83 /etc/init.d/srv1cv83 \
+&& ln -s /opt/1cv8/x86_64/8.3.${SERVER_VERSION}/srv1cv83.conf /etc/default/srv1cv83 \
+&& update-rc.d srv1cv83 defaults
 
 RUN rm /tmp/*.* \
   && mkdir --parents /var/log/1C /home/usr1cv8/.1cv8/1C/1cv8/conf \
