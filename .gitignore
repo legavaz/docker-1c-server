@@ -1,0 +1,15 @@
+# 1C installation packages: large (up to 500+ MB) and proprietary — never commit.
+# They are copied to the build host as dist/ before building the image.
+*.deb
+dist/
+
+# Build/debug artifacts
+*.log
+
+# Local deployment details and credentials (see AGENTS.md)
+DEPLOY.local.md
+*.local.md
+
+# OS cruft
+Thumbs.db
+.DS_Store

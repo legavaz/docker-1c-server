@@ -1,0 +1,29 @@
+services:
+  1c-server:
+    image: 1c-server:8.3.27.2342
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 1c-server
+    restart: unless-stopped
+    # host-сеть: кластер 1С отдаёт клиентам адрес рабочего процесса (rph),
+    # поэтому NAT-порты из bridge-сети работать не будут.
+    # hostname НЕ задавать — в host-сети ragent падает и контейнер перезапускается.
+    network_mode: host
+    environment:
+      ONEC_AGENT_PORT: "1540"
+      ONEC_REGPORT: "1541"
+      ONEC_RANGE: "1560:1591"
+      ONEC_SECLEV: "0"
+      ONEC_RAS_PORT: "1545"
+    volumes:
+      - 1c-data:/home/usr1cv8/.1cv8
+      - 1c-logs:/var/log/1c
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+
+volumes:
+  1c-data:
+  1c-logs:
