@@ -1,12 +1,11 @@
-# BSL Language Server в Docker (batch)
+# BSL Language Server в Docker (проверка скриптов)
 
 Статический анализ исходников 1С на языке BSL через **BSL Language Server**,
-запускаемый в Docker на VM `kali` (`192.168.1.51`). Гибридная схема:
+запускаемый в Docker на VM `kali` (`192.168.1.51`).
 
-- **MCP** — остаётся **локальным** на Windows (OpenCode Desktop → `C:\tools\bsl\bsl-language-server.jar`),
-  это удобно для интерактивной работы агента.
-- **Batch (analyze/format)** — вынесен **в Docker** на VM: не грузит память Windows,
-  можно гонять по расписанию/в CI, исходники приходят через SMB-шару.
+**Назначение:** отправить серверу скрипты (`.bsl`) — получить отчёт о замечаниях.
+Интерактивный MCP-режим локального BSL **отключён** (`enabled: false` в
+`E:\project\0509 git converter\opencode.json`), используется только batch-проверка.
 
 > Версия jar: **1.0.7** (ваш `C:\tools\bsl\bsl-language-server.jar`).
 > Java в образе: Eclipse Temurin **21** (поддерживаются 17/21/23).
@@ -21,12 +20,32 @@ Windows 192.168.1.57                     VM VirtualBox kali 192.168.1.51
 │ E:\rep  (исходники 1С, .bsl) │  SMB    │ /srv/rep   (CIFS-монтирование шары)     │
 │  шара \\192.168.1.57\rep     │────────▶│            │ (ro/rw)                     │
 │  пользователь smb1c          │  445    │            ▼                            │
-├──────────────────────────────┤         │ Docker: bsl-language-server             │
-│ OpenCode Desktop             │         │   -v /srv/rep:/work                     │
-│  └ MCP bsl-language-server   │         │   -v /srv/bsl-reports:/reports          │
-│    (локальный java, как есть)│         │   analyze -s /work/<ПОДПАПКА> -o /reports│
+├──────────────────────────────┤  SMB    │ Docker: bsl-language-server             │
+│ OpenCode Desktop             │────────▶│   -v /srv/rep:/work                     │
+│  (MCP bsl — отключён)        │  445    │   -v /srv/bsl-reports:/reports          │
+│                              │         │   analyze -s /work/<ПОДПАПКА> -o /reports│
 └──────────────────────────────┘         └─────────────────────────────────────────┘
 ```
+
+## 2a. Быстрая проверка присланных скриптов
+
+`bsl-check.sh` — «проверить любой каталог со скриптами и получить отчёт»:
+
+```bash
+cd /home/kali/bsl-docker
+./bsl-check.sh <каталог_с_bsl> [reporter...]
+
+# примеры
+./bsl-check.sh /srv/rep/task_git_file210 json console
+./bsl-check.sh /home/kali/bsl-work/rep/_bsl_selftest json
+
+# сводка по отчёту
+python3 report-summary.py /srv/bsl-reports/bsl-json.json
+```
+
+- каталог монтируется в контейнер как `/work:ro` (только чтение — исходники не меняются);
+- отчёты кладутся в `/srv/bsl-reports/` (`bsl-json.json` и др.);
+- репортеры: `json`, `console`, `junit`, `tslint`, `generic`.
 
 ## 2. Состав проекта
 
@@ -34,6 +53,7 @@ Windows 192.168.1.57                     VM VirtualBox kali 192.168.1.51
 |---|---|
 | `bsl-server/Dockerfile` | Образ: Temurin 21 JRE + jar, user `bsl`, `-Xmx4g` |
 | `bsl-server/bsl.sh` | Обёртка запуска на VM (`analyze`/`format`/`version`/`raw`) |
+| `bsl-server/bsl-check.sh` | Проверить произвольный каталог со скриптами и получить отчёт |
 | `bsl-server/config/.bsl-language-server.json` | Конфиг BSL для batch |
 | `bsl-server/vm-mount-rep.sh` | Монтирование SMB-шары `E:\rep` в `/srv/rep` (одноразово, sudo) |
 | `bsl-server/report-summary.py` | Сводка по JSON-отчёту (файлы, замечания, топ-коды) |
@@ -164,8 +184,9 @@ python3 /home/kali/bsl-docker/report-summary.py /srv/bsl-reports/bsl-json.json
 2. Пересобрать: `docker build -t bsl-language-server:latest .`
 3. Проверить: `./bsl.sh version`.
 
-## 11. Что НЕ менялось
+## 11. Локальный MCP
 
-Конфиг OpenCode (`E:\project\0509 git converter\opencode.json`) не тронут: MCP
-`bsl-language-server` остаётся локальным (`type: local`, java на Windows) — это и есть
-смысл гибрида. Проблема несовпадения путей Windows↔Linux не возникает.
+Отключён: в `E:\project\0509 git converter\opencode.json` у сервера
+`bsl-language-server` стоит `"enabled": false`. Для задачи «проверить скрипты»
+интерактивный режим не нужен — используется `bsl-check.sh`/`bsl.sh` в Docker.
+Чтобы вернуть MCP, поставьте `"enabled": true` (или удалите атрибут) и перезапустите OpenCode.
