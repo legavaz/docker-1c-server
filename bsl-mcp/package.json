@@ -1,0 +1,18 @@
+{
+  "name": "bsl-check-mcp",
+  "version": "1.0.0",
+  "description": "MCP server that sends edited 1C (BSL) files to BSL Language Server in Docker on the VM and returns the JSON report",
+  "type": "module",
+  "bin": {
+    "bsl-check-mcp": "server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
