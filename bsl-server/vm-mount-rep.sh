@@ -2,7 +2,9 @@
 set -euo pipefail
 
 SMB_USER="smb1c"
-SMB_PASS="V8xKp3mQ7rTz9wLd"
+# Пароль задаётся переменной окружения (значение — в DEPLOY.local.md):
+#   SMB_PASS='<SMB_PASSWORD>' sudo -E bash vm-mount-rep.sh
+SMB_PASS="${SMB_PASS:?задайте переменную SMB_PASS}"
 SMB_UNC="//192.168.1.57/rep"
 MP="/srv/rep"
 CRED="/etc/cifs-rep"

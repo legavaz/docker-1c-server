@@ -4,7 +4,9 @@
 -- Этот скрипт — альтернатива, если БД создаётся заранее вручную.
 -- Выполнять суперпользователем: psql -U postgres -h <PG_HOST> -f pg_setup.sql
 
-CREATE ROLE usr1cv8 LOGIN PASSWORD 'usr1cv8';
+-- Пароль роли задаётся psql-переменной (значение — в DEPLOY.local.md):
+--   psql -U postgres -h <PG_HOST> -v db_pwd='<DB_PASSWORD>' -f pg_setup.sql
+CREATE ROLE usr1cv8 LOGIN PASSWORD :'db_pwd';
 CREATE DATABASE base1c OWNER usr1cv8 ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;
 
 \connect base1c

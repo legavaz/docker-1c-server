@@ -83,7 +83,7 @@ scp -i /c/Users/lega/.ssh/opencode_vm \
 
 ### Windows (один раз, админ-PowerShell)
 ```powershell
-$secure = ConvertTo-SecureString 'V8xKp3mQ7rTz9wLd' -AsPlainText -Force
+$secure = Read-Host 'Пароль smb1c' -AsSecureString   # значение — в DEPLOY.local.md
 New-LocalUser -Name smb1c -Password $secure -PasswordNeverExpires -AccountNeverExpires `
   -Description 'SMB read/write for 1C docker'
 New-SmbShare -Name rep -Path 'E:\rep' -ChangeAccess smb1c
@@ -97,7 +97,7 @@ sudo bash /home/kali/1c-docker/vm-mount-rep.sh   # из плана ранее: �
 ```
 Учётные данные хранятся в `/etc/cifs-rep` (chmod 600).
 
-> Пароль `smb1c` задан в скрипте и в чате — **смените** его после настройки.
+> Пароль `smb1c` хранится только в `DEPLOY.local.md` (не в репозитории).
 
 ## 5. Запуск анализа
 

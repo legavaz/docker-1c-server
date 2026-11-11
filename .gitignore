@@ -1,8 +1,13 @@
 # 1C installation packages: large (up to 500+ MB) and proprietary — never commit.
 # They are copied to the build host as dist/ before building the image.
 *.deb
+*.deb64
 setup-full-8.3.20.1996-x86_64.run
 dist/
+1с install - deb/
+*.zip
+*.ospx
+client_*
 
 # Build/debug artifacts
 *.log
