@@ -1,116 +1,68 @@
 # bsl-check-mcp
 
-MCP-сервер (stdio), который принимает отредактированные файлы 1С (`.bsl`),
-отправляет их на проверку в **BSL Language Server** (Docker на VM `kali`)
-и возвращает **JSON-отчёт**.
+MCP-сервер (stdio) для OpenCode: тонкий HTTP-клиент к центральному сервису проверки BSL
+(`bsl-api`, см. `../bsl-api/README.md`). SSH и копирование файлов не используются.
 
 ```
-OpenCode (Windows) ──stdio──▶ bsl-check-mcp (Node) ──ssh/scp──▶ VM kali
-                                                                 │
-                                                     docker run bsl-language-server
-                                                                 │
-                                                          /srv/bsl-reports/bsl-json.json
+OpenCode ──stdio──▶ bsl-check-mcp (Node) ──HTTP──▶ bsl-api (VM, Portainer) ──▶ BSL LS
 ```
 
-## Инструменты
+## Инструмент
 
-| Tool | Аргументы | Что делает |
+`check_bsl` — проверить модуль 1С:
+
+| Аргумент | Обязательность | Описание |
 |---|---|---|
-| `check_files` | `files: string[]`, `reporters?: string[]` | Проверить список файлов, вернуть JSON-отчёт |
-| `check_dir` | `dir: string`, `reporters?: string[]` | Проверить каталог |
-| `read_report` | — | Прочитать последний отчёт |
+| `files` | один из `files` / `text` | массив абсолютных путей к `.bsl`/`.os`; каждый уходит в `POST /check/file` |
+| `text`, `filename` | один из `files` / `text` | текст модуля и имя (уходит в `POST /check`) |
+| `ticket` | нет | номер задачи Jira, например `ERP-1234`; до 50 символов |
 
-Возврат `check_files`/`check_dir`:
+Имя пользователя (`user`) сервис получает **автоматически**: из переменной `BSL_USER`, иначе из `USERNAME` Windows, иначе из учётной записи ОС. Если имя не определено, отправляется `неизвестно`. Аргумента для имени в инструменте нет — оно всегда берётся с машины, где запущен OpenCode.
+
+Возвращает JSON: `ok` (все запросы прошли), `valid` (нет ошибок уровня Error во всех модулях), `results[]` — по каждому входу: `valid`, `summary`, `errors[]`, `warnings[]`, `text`, `user`, `ticket`, `duration_ms` (или `error`, если запрос не прошёл).
+
+## Настройка (переменные окружения)
+
+| Переменная | По умолчанию | Смысл |
+|---|---|---|
+| `BSL_SERVICE_TOKEN` | — (обязательна) | общий токен команды (значение в `DEPLOY.local.md`) |
+| `BSL_SERVICE_URL` | `http://192.168.1.51:8080` | адрес сервиса |
+| `BSL_USER` | — | имя пользователя вручную (если не нужно имя из Windows) |
+| `BSL_CLIENT_TIMEOUT_MS` | `180000` | таймаут одного запроса |
+
+Токен задаётся **переменной окружения пользователя Windows** (не лежит в `opencode.json`):
+
+```powershell
+[Environment]::SetEnvironmentVariable('BSL_SERVICE_TOKEN', '<токен>', 'User')
+```
+
+После установки переменной перезапустите OpenCode, чтобы он её подхватил.
+
+## Подключение в OpenCode
+
+`C:\Users\lega\.config\opencode\opencode.jsonc` (глобально):
 
 ```json
-{
-  "ok": true,
-  "reportPath": "/srv/bsl-reports/bsl-json.json",
-  "targets": ["/srv/rep/..."],
-  "results": [{ "exitCode": 0, "stderrTail": "" }],
-  "errors": [],
-  "report": { "fileinfos": [ ... ] }
+"bsl-check": {
+  "type": "local",
+  "command": ["node", "E:\\project\\docker 1c\\bsl-mcp\\server.mjs"],
+  "enabled": true
 }
 ```
 
-`report` — это JSON-отчёт BSL как есть (`fileinfos[].diagnostics[]` с `code`,
-`severity`, `message`, `range`).
+Инструмент в OpenCode: `bsl-check_check_bsl`.
 
-## Как файлы попадают на VM
-
-- Файлы внутри **SMB-шары** (`WSL_MAP`, по умолчанию `E:\rep` → `/srv/rep`)
-  проверяются **на месте**, без копирования.
-- Файлы **вне** шары копируются по `scp` в `VM_TMP_DIR` (inbox), проверяются и
-  удаляются (если `KEEP_STAGED=false`).
-
-## Настройка
-
-`config.env` (рядом со `server.mjs`); переменные окружения перекрывают файл:
-
-| Ключ | По умолчанию | Смысл |
-|---|---|---|
-| `SSH_HOST` | `kali` | SSH-хост VM (alias из `~/.ssh/config`) |
-| `SSH_KEY` | `C:\Users\lega\.ssh\opencode_vm` | Приватный ключ |
-| `SSH_BIN` / `SCP_BIN` | `C:\Program Files\Git\usr\bin\ssh.exe` / `scp.exe` | (в PATH Windows их нет) |
-| `VM_BSL_DIR` | `/home/kali/bsl-docker` | Каталог с `bsl-check.sh` на VM |
-| `VM_REPORT_DIR` | `/srv/bsl-reports` | Каталог отчётов на VM |
-| `WSL_MAP` | `E:\rep=/srv/rep` | Карта Windows→VM (можно несколько через запятую) |
-| `VM_TMP_DIR` | `/home/kali/bsl-inbox` | Куда копировать файлы вне шары |
-| `TIMEOUT_MS` | `900000` | Таймаут одной операции |
-| `KEEP_STAGED` | `false` | Оставлять ли копии файлов на VM |
-
-## Подключение к OpenCode
-
-В `opencode.json` (глобальном или проекта):
-
-```json
-{
-  "mcp": {
-    "bsl-check": {
-      "type": "local",
-      "command": ["node", "E:\\project\\docker 1c\\bsl-mcp\\server.mjs"],
-      "enabled": true
-    }
-  }
-}
-```
-
-После перезапуска OpenCode появятся инструменты `bsl-check_check_files`,
-`bsl-check_check_dir`, `bsl-check_read_report`.
-
-## Установка зависимостей
+## Проверка вручную
 
 ```powershell
 cd "E:\project\docker 1c\bsl-mcp"
-npm install
+npm install        # один раз
+npm start          # логи в stderr: [bsl-check-mcp] started; service=..., token=set, user=...
 ```
+
+Для тестовых запусков с PowerShell не передавайте кириллицу через конвейер (`Get-Content | node`): PowerShell портит кодировку. Используйте перенаправление `node server.mjs < файл.jsonl` через `cmd /c`, файл пишите в UTF-8 без BOM.
 
 ## Требования
 
 - Node.js ≥ 18 (проверено на 24).
-- Git for Windows (даёт `ssh.exe`/`scp.exe`).
-- На VM: собранный образ `bsl-language-server` и `bsl-check.sh` в `VM_BSL_DIR`.
-- SSH-доступ к VM по ключу (см. `AGENTS.md`).
-
-## Ручной запуск (отладка)
-
-```powershell
-npm start
-# или
-node server.mjs
-```
-Логи идут в `stderr` (`[bsl-check-mcp] ...`).
-
-## Пример вызова (в OpenCode)
-
-> Проверь BSL эти файлы: E:\rep\...\Module.bsl
-
-Агент вызовет `bsl-check_check_files` и получит JSON-отчёт.
-
-## Известные тонкости
-
-- В PATH Windows нет `ssh`/`scp` — используются пути Git for Windows (`SSH_BIN`/`SCP_BIN`).
-- Команды на VM передаются в `stdin` (`ssh kali bash -s`), чтобы кавычки и
-  UTF-8 (кириллица) в путях не искажались.
-- Отчёт общий (`bsl-json.json`) перезаписывается каждым вызовом — при
-  параллельных проверках возможна гонка. Для последовательного использования ок.
+- Доступ к `BSL_SERVICE_URL` из локальной сети.

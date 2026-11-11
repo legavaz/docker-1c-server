@@ -11,6 +11,7 @@ client_*
 
 # Build/debug artifacts
 *.log
+__pycache__/
 
 # Local deployment details and credentials (see AGENTS.md)
 DEPLOY.local.md

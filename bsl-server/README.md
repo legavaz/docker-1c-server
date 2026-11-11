@@ -1,5 +1,10 @@
 # BSL Language Server в Docker (проверка скриптов)
 
+> Основной способ проверки для команды — центральный HTTP-сервис `bsl-api` (`../bsl-api/README.md`),
+> он использует этот же образ `bsl-language-server` и платформу (hbk).
+> Обновление hbk: `sync-platform-hbk.ps1` (копирует `*.hbk` на VM и перезапускает `bsl-api`).
+> Этот README описывает batch-проверку каталогов через `bsl-check.sh`.
+
 Статический анализ исходников 1С на языке BSL через **BSL Language Server**,
 запускаемый в Docker на VM `kali` (`192.168.1.51`).
 

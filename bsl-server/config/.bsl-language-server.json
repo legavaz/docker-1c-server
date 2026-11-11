@@ -14,6 +14,10 @@
     "analyzeOnStart": true,
     "skipSupport": "never",
     "ordinaryAppSupport": false,
+    "parameters": {
+      "UnknownMember": true,
+      "MissedRequiredParameter": true
+    },
     "metadata": {
       "LineLength": {
         "maxLineLength": 120
@@ -29,6 +33,7 @@
     "useOnTypeFormatting": true
   },
   "v8platform": {
-    "enabled": true
+    "enabled": true,
+    "binPath": "/opt/1c/bin"
   }
 }
