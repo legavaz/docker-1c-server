@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>BSL check — журнал и аналитика</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; color: #222; }
+  h1 { font-size: 20px; margin: 0 0 12px; }
+  h3 { font-size: 15px; margin: 18px 0 8px; }
+  .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  input, select, button { padding: 6px 8px; font-size: 14px; }
+  .cards { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .card { border: 1px solid #ddd; border-radius: 6px; padding: 10px 14px; min-width: 130px; }
+  .card b { display: block; font-size: 20px; }
+  .chart { display: flex; align-items: flex-end; gap: 4px; height: 120px; border-bottom: 1px solid #ccc; margin-bottom: 22px; position: relative; }
+  .col { flex: 1; min-width: 10px; background: #4a90d9; position: relative; }
+  .col.err { background: #d9534f; position: absolute; bottom: 0; left: 0; right: 0; }
+  .col span { position: absolute; bottom: -18px; left: 0; font-size: 9px; transform: rotate(-45deg); transform-origin: left top; white-space: nowrap; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 8px; }
+  th, td { border-bottom: 1px solid #eee; padding: 6px; text-align: left; }
+  th { background: #fafafa; }
+  .ok { color: #2e7d32; } .bad { color: #c62828; }
+  .muted { color: #888; font-size: 12px; }
+  .wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+  .wrap > div { flex: 1 1 420px; }
+</style>
+</head>
+<body>
+<h1>BSL check — журнал проверок и аналитика</h1>
+<div class="bar">
+  Токен: <input id="token" type="password" size="30" placeholder="BSL_SERVICE_TOKEN">
+  <button onclick="saveToken()">Сохранить</button>
+  Период:
+  <select id="days" onchange="load()">
+    <option value="7">7 дней</option>
+    <option value="30" selected>30 дней</option>
+  </select>
+  Пользователь:
+  <select id="fUser" onchange="load()"><option value="">Все</option></select>
+  Тикет:
+  <select id="fTicket" onchange="load()"><option value="">Все</option></select>
+  <button onclick="load()">Обновить</button>
+  <span id="msg" class="muted"></span>
+</div>
+
+<div class="cards">
+  <div class="card">Проверок<b id="c-checks">—</b></div>
+  <div class="card">Доля валидных<b id="c-valid">—</b></div>
+  <div class="card">Ошибок<b id="c-errors">—</b></div>
+  <div class="card">Предупреждений<b id="c-warnings">—</b></div>
+  <div class="card">Среднее время, мс<b id="c-avg">—</b></div>
+</div>
+
+<h3>По дням (синий — проверки, красный — ошибки)</h3>
+<div class="chart" id="chart"></div>
+
+<div class="wrap">
+  <div>
+    <h3>По пользователям</h3>
+    <table>
+      <thead><tr><th>Пользователь</th><th>Проверок</th><th>Ошибок</th><th>Предупр.</th><th>Среднее, мс</th></tr></thead>
+      <tbody id="byUser"></tbody>
+    </table>
+  </div>
+  <div>
+    <h3>По тикетам</h3>
+    <table>
+      <thead><tr><th>Тикет</th><th>Проверок</th><th>Ошибок</th><th>Предупр.</th><th>Среднее, мс</th></tr></thead>
+      <tbody id="byTicket"></tbody>
+    </table>
+  </div>
+</div>
+
+<h3>Частые диагностики</h3>
+<table style="width:auto"><tbody id="codes"></tbody></table>
+
+<h3>Последние проверки</h3>
+<table>
+  <thead><tr><th>Время (UTC)</th><th>Пользователь</th><th>Тикет</th><th>Клиент</th><th>Источник</th><th>Файл</th><th>Размер</th><th>Статус</th><th>Ош.</th><th>Предупр.</th><th>мс</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let jiraBase = '';
+$('token').value = localStorage.getItem('bsl_token') || '';
+
+function saveToken() {
+  localStorage.setItem('bsl_token', $('token').value.trim());
+  loadFilters().then(load);
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function dash(s) { return s ? esc(s) : '<span class="muted">—</span>'; }
+
+async function api(path) {
+  const token = localStorage.getItem('bsl_token') || '';
+  const r = await fetch(path, { headers: { Authorization: 'Bearer ' + token } });
+  if (!r.ok) throw new Error(r.status === 401 ? 'неверный токен' : 'ошибка ' + r.status);
+  return r.json();
+}
+
+function selected() {
+  const u = $('fUser').value, t = $('fTicket').value;
+  const q = [];
+  if (u) q.push('user=' + encodeURIComponent(u));
+  if (t) q.push('ticket=' + encodeURIComponent(t));
+  return q.length ? '&' + q.join('&') : '';
+}
+
+async function loadFilters() {
+  try {
+    const h = await fetch('/health').then(r => r.json());
+    jiraBase = h.jira_base_url || '';
+    const s = await api('/api/stats?days=' + $('days').value);
+    const fill = (sel, values) => {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">Все</option>' +
+        values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+      sel.value = values.includes(cur) ? cur : '';
+    };
+    fill($('fUser'), s.values.users);
+    fill($('fTicket'), s.values.tickets);
+  } catch (e) {
+    $('msg').textContent = e.message;
+  }
+}
+
+function rowsTable(target, items, keyLabel) {
+  target.innerHTML = items.map(x => `<tr>
+      <td>${dash(x.key)}</td><td>${x.checks}</td><td>${x.errors}</td>
+      <td>${x.warnings}</td><td>${x.avg_duration_ms}</td></tr>`).join('')
+    || `<tr><td colspan="5" class="muted">нет данных</td></tr>`;
+}
+
+async function load() {
+  $('msg').textContent = 'загрузка…';
+  try {
+    const days = $('days').value;
+    const [s, rows] = await Promise.all([
+      api('/api/stats?days=' + days + selected()),
+      api('/api/journal?limit=200' + selected()),
+    ]);
+    $('c-checks').textContent = s.checks;
+    $('c-valid').textContent = s.valid_share === null ? '—' : Math.round(s.valid_share * 100) + '%';
+    $('c-errors').textContent = s.errors;
+    $('c-warnings').textContent = s.warnings;
+    $('c-avg').textContent = s.avg_duration_ms;
+
+    const max = Math.max(1, ...s.per_day.map(d => d.checks));
+    $('chart').innerHTML = s.per_day.map(d => {
+      const h = Math.round(d.checks / max * 110);
+      const eh = d.errors ? Math.max(4, Math.round(Math.min(d.errors, d.checks) / max * 110)) : 0;
+      return `<div class="col" style="height:${h}px" title="${esc(d.day)}: ${d.checks} пров., ${d.errors} ош.">` +
+             (eh ? `<div class="col err" style="height:${eh}px"></div>` : '') +
+             `<span>${esc(d.day.slice(5))}</span></div>`;
+    }).join('') || '<span class="muted">нет данных за период</span>';
+
+    rowsTable($('byUser'), s.by_user);
+    rowsTable($('byTicket'), s.by_ticket);
+
+    $('codes').innerHTML = s.top_codes.map(([c, n]) => `<tr><td>${esc(c)}</td><td>${n}</td></tr>`).join('')
+      || '<tr><td class="muted">нет</td></tr>';
+
+    $('rows').innerHTML = rows.map(r => {
+      const ok = r.status === 'ok';
+      const ticket = r.ticket
+        ? (jiraBase ? `<a href="${esc(jiraBase + r.ticket)}" target="_blank">${esc(r.ticket)}</a>` : esc(r.ticket))
+        : '<span class="muted">—</span>';
+      return `<tr>
+        <td>${esc(r.ts.replace('T',' ').slice(0,19))}</td>
+        <td>${dash(r.user)}</td>
+        <td>${ticket}</td>
+        <td>${esc(r.client)}</td>
+        <td>${esc(r.source)}</td>
+        <td>${esc(r.filename)}</td>
+        <td>${r.size ?? ''}</td>
+        <td class="${ok ? 'ok' : 'bad'}">${esc(r.status)}</td>
+        <td>${r.errors ?? ''}</td>
+        <td>${r.warnings ?? ''}</td>
+        <td>${r.duration_ms ?? ''}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="11" class="muted">журнал пуст</td></tr>';
+    $('msg').textContent = 'обновлено ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    $('msg').textContent = e.message;
+  }
+}
+
+loadFilters().then(load);
+</script>
+</body>
+</html>

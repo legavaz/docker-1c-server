@@ -1,0 +1,25 @@
+# Стек Portainer «bsl». Переменные задаются в UI Portainer (раздел Environment variables).
+# Токен BSL_SERVICE_TOKEN — только в Portainer, в файлы не записывать.
+services:
+  bsl-api:
+    image: bsl-api:1.0.2
+    container_name: bsl-api
+    restart: unless-stopped
+    ports:
+      - "${BSL_PORT:-8080}:8080"
+    environment:
+      BSL_SERVICE_TOKEN: ${BSL_SERVICE_TOKEN:?задайте BSL_SERVICE_TOKEN в Portainer}
+      BSL_TIMEOUT_SEC: ${BSL_TIMEOUT_SEC:-120}
+      BSL_MAX_BYTES: ${BSL_MAX_BYTES:-2097152}
+      BSL_RETENTION_DAYS: ${BSL_RETENTION_DAYS:-30}
+      BSL_JIRA_BASE_URL: ${BSL_JIRA_BASE_URL:-}
+    volumes:
+      # конфиг правил (общий с batch-проверкой)
+      - /home/kali/bsl-docker/config:/config:ro
+      # hbk платформы 1С (type-aware), обновляется скриптом sync-platform-hbk.ps1
+      - /home/kali/bsl-platform/bin:/opt/1c/bin:ro
+      - bsl-data:/data
+    mem_limit: 3g
+
+volumes:
+  bsl-data:
