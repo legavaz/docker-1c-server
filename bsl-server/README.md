@@ -173,15 +173,20 @@ python3 /home/kali/bsl-docker/report-summary.py /srv/bsl-reports/bsl-json.json
 | Симптом | Причина / решение |
 |---|---|
 | `Permission denied /reports/...json` | запуск не под нужным uid — в `bsl.sh` уже `--user $(id -u):$(id -g)`; либо `chmod` на `REPORT_DIR` |
-| `No 1C platform installations found` | WARN: в контейнере нет платформы 1С (hbk). Диагностики работают; для type-aware — см. п. ниже |
+| `No 1C platform installations found` | WARN: в контейнере нет платформы 1С (hbk) — не примонтирован `/opt/1c/bin`. Для `bsl-check.sh` (batch) hbk не монтируются, поэтому предупреждение нормально. Сервис `bsl-api` монтирует hbk сам |
 | `Analyzing files... 0/0` | в каталоге нет `.bsl` (например, это файловая база `.1CD`, а не XML-выгрузка) |
 | `useradd: UID 1000 is not unique` | в базовом образе uid занят — в Dockerfile нет `-u 1000` |
 | Отчёт не появился в `/srv/bsl-reports` | проверьте `REPORT_DIR` (в оболочке) и права; по умолчанию пишет именно туда |
 
-### type-aware анализ (опционально)
-Для полной проверки типов можно положить в образ **hbk**-файлы платформы
-(`C:\tools\bsl` или из пакетов 1С) и указать конфиг `v8platform`/`fromHbk`. Пока
-используется анализ без платформенного контекста (части type-aware диагностики ограничены).
+### type-aware анализ (hbk платформы)
+
+Конфиг `config/.bsl-language-server.json` содержит `v8platform.binPath = /opt/1c/bin`:
+путь к каталогу с hbk платформы внутри контейнера.
+
+- **`bsl-api`** (сервис) монтирует `/home/kali/bsl-platform/bin` в `/opt/1c/bin` — type-aware работает.
+- **`bsl-check.sh`** (batch) hbk **не монтирует** — проверка идёт без платформенного контекста. Чтобы включить hbk и для batch, добавьте в `docker run` ключ `-v /home/kali/bsl-platform/bin:/opt/1c/bin:ro`.
+
+Обновление hbk — `sync-platform-hbk.ps1` (см. `bsl-api/README.md`).
 
 ## 10. Обновление jar/версии
 

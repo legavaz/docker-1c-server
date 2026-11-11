@@ -1,10 +1,13 @@
-# bsl-check-mcp
+# BSL check lega (bsl-check)
 
 MCP-сервер (stdio) для OpenCode: тонкий HTTP-клиент к центральному сервису проверки BSL
 (`bsl-api`, см. `../bsl-api/README.md`). SSH и копирование файлов не используются.
 
+Имя сервера в MCP-протоколе — `BSL check lega`. Ключ в конфиге OpenCode — `bsl-check`
+(поэтому инструмент вызывается как `bsl-check_check_bsl`).
+
 ```
-OpenCode ──stdio──▶ bsl-check-mcp (Node) ──HTTP──▶ bsl-api (VM, Portainer) ──▶ BSL LS
+OpenCode ──stdio──▶ BSL check lega (Node) ──HTTP──▶ bsl-api (VM, Portainer) ──▶ BSL LS
 ```
 
 ## Инструмент

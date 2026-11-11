@@ -10,6 +10,17 @@ Ubuntu 22.04, с подключением информационных баз к
 
 ---
 
+## Состав репозитория
+
+| Раздел | Документация |
+|---|---|
+| сервер 1С в Docker (этот документ) | `README.md`, `1c-server/` |
+| BSL Language Server (batch-проверка каталогов) | `bsl-server/README.md` |
+| центральный сервис проверки BSL (API, журнал, `/ui`) | `bsl-api/README.md`, адреса страниц — `bsl-api/WEB-PAGES.md` |
+| MCP «BSL check lega» для OpenCode | `bsl-mcp/README.md` |
+
+Унаследованные файлы в корне (`Dockerfile`, `makefile`, `container/`, `arh/`) относятся к исходному образу 1С и к текущей работе не относятся.
+
 ## 1. Архитектура
 
 ```
